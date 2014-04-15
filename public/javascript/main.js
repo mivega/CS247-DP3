@@ -6,10 +6,9 @@
   var cur_video_blob = null;
   var fb_instance;
   var cur_user;
+  var users = new Array();
 
- var video_queued = false;
-  var pushed_video;
-  // var video_recording=false;
+  var video_queued = false;
   var mediaRecorder;
 
   $(document).ready(function(){
@@ -38,6 +37,7 @@
 
     // listen to events
     fb_instance_users.on("child_added",function(snapshot){
+      users.push(snapshot.val().name);
       display_msg({m:snapshot.val().name+" joined the room",c: snapshot.val().c});
     });
     fb_instance_stream.on("child_added",function(snapshot){
@@ -57,7 +57,6 @@
     $("#submission #message").keydown(function( event ) {
       if (event.which == 13) {
         if ($('input:checkbox[name=video]').is(':checked')) {
-        // if(has_emotions($(this).val())){
           fb_instance_stream.push({m:username+": " +$('#message').val(), c: my_color, b: true});
         }else{
           fb_instance_stream.push({m:username+": " +$('#message').val(), c: my_color, b: false});
@@ -71,11 +70,9 @@
     scroll_to_bottom(1300);
   }
 
-
-
   function record_reaction(){
 
-       mediaRecorder.ondataavailable = function (blob) {
+    mediaRecorder.ondataavailable = function (blob) {
           //console.log("new data available!");
           video_container.innerHTML = "";
 
@@ -85,12 +82,34 @@
           });
       };
 
-      setInterval( function() {
-        mediaRecorder.stop();
-        mediaRecorder.start(5000);
-      }, 5000 );
-      video_queued = true;
-      fb_instance_stream.push({m:username+": " +$('#message').val()+"recording", v:cur_video_blob, c: my_color});
+    // var errorCallback = function(e) {
+    //   console.error('Nope!', e);
+    // };
+
+    // navigator.getUserMedia({video: true, audio: false}, 
+    //   function(localMediaStream){
+    //     var video = document.querySelector('video');
+    //     video.src = window.URL.createObjectURL(localMediaStream);
+    //     video.onloadedmetadata = function(e){
+    //         video_container.innerHTML = "";
+
+    //       // convert data into base 64 blocks
+    //       blob_to_base64(blob,function(b64_data){
+    //         cur_video_blob = b64_data;
+    //       });
+    //     };
+    //   }, errorCallback);
+
+  mediaRecorder.start(30000);
+
+
+
+      // setInterval( function() {
+      //   mediaRecorder.stop();
+      //   mediaRecorder.start(5000);
+      // }, 5000 );
+      // video_queued = true;
+      // fb_instance_stream.push({m:username+": " +$('#message').val(), v:cur_video_blob, c: my_color});
   }
 
   function parse_username(str){
@@ -104,34 +123,59 @@
   function display_msg(data){
     $("#conversation").append("<div class='msg' style='color:"+data.c+"'>"+data.m+"</div>");
     if(data.b){
-      var sender = parse_username(data.m);
-      if(sender != cur_user){
-        record_reaction();
-      }
+      users.forEach(function(entry){
+        if (entry!=cur_user){
+          console.log(entry);
+          record_reaction();
+          var video = document.createElement("video");
+          video.autoplay = true;
+          video.controls = false; // optional
+          video.loop = true;
+          video.width = 120;
+
+          var source = document.createElement("source");
+          source.src =  URL.createObjectURL(base64_to_blob(cur_video_blob));
+          source.type =  "video/webm";
+
+          video.appendChild(source);
+
+          // for gif instead, use this code below and change mediaRecorder.mimeType in onMediaSuccess below
+          // var video = document.createElement("img");
+          // video.src = URL.createObjectURL(base64_to_blob(data.v));
+
+          document.getElementById("conversation").appendChild(video);
+            }
+          });
+
+
+      // var sender = parse_username(data.m);
+      // if(sender != cur_user){
+      //   record_reaction();
+      // }
       //record a 5 second blob
       //send it
     }
 
-    if(data.v){
-      // for video element
-      var video = document.createElement("video");
-      video.autoplay = true;
-      video.controls = false; // optional
-      video.loop = true;
-      video.width = 120;
+    // if(data.v){
+    //   // for video element
+    //   var video = document.createElement("video");
+    //   video.autoplay = true;
+    //   video.controls = false; // optional
+    //   video.loop = true;
+    //   video.width = 120;
 
-      var source = document.createElement("source");
-      source.src =  URL.createObjectURL(base64_to_blob(data.v));
-      source.type =  "video/webm";
+    //   var source = document.createElement("source");
+    //   source.src =  URL.createObjectURL(base64_to_blob(data.v));
+    //   source.type =  "video/webm";
 
-      video.appendChild(source);
+    //   video.appendChild(source);
 
-      // for gif instead, use this code below and change mediaRecorder.mimeType in onMediaSuccess below
-      // var video = document.createElement("img");
-      // video.src = URL.createObjectURL(base64_to_blob(data.v));
+    //   // for gif instead, use this code below and change mediaRecorder.mimeType in onMediaSuccess below
+    //   // var video = document.createElement("img");
+    //   // video.src = URL.createObjectURL(base64_to_blob(data.v));
 
-      document.getElementById("conversation").appendChild(video);
-    }
+    //   document.getElementById("conversation").appendChild(video);
+    // }
   }
 
   function scroll_to_bottom(wait_time){
